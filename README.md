@@ -85,12 +85,13 @@ Regra de integridade: para o mesmo médico, não existem duas consultas com a me
 ├── main.py                     # demonstração passo a passo
 ├── comparacao.py               # benchmark -> assets/ultimos_resultados.json
 ├── plot_results.py             # JSON -> gráficos em assets/
+├── tabelas_readme.py           # JSON -> tabelas de resultados deste README
 ├── testes.py                   # testes de corretude
 ├── requirements.txt            # matplotlib
 └── README.md
 ```
 
-A Rubro-Negra (`src/arvores/rubro_negra.py`) entra na próxima etapa. Ao ser incluída em `ESTRUTURAS`, ela passa automaticamente pelos testes, pela demonstração e pelo benchmark.
+A Rubro-Negra (`src/arvores/rubro_negra.py`) entra na próxima etapa. Ao ser incluída em `ESTRUTURAS`, ela passa automaticamente pelos testes, pela demonstração e pelo benchmark e ganha uma coluna nas tabelas de resultados (ao rodar `python tabelas_readme.py`).
 
 ## Como rodar
 
@@ -102,6 +103,7 @@ python testes.py                  # deve terminar com "Todos os testes passaram.
 python main.py                    # demonstração passo a passo
 python comparacao.py              # benchmark (~40 s); aceita tamanhos: python comparacao.py 1000 5000
 python plot_results.py            # gera os gráficos em assets/
+python tabelas_readme.py          # atualiza as tabelas de resultados do README
 python dados/gerar_base.py        # gera de novo a base (sai idêntica, seed 42)
 ```
 
@@ -239,7 +241,7 @@ Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio
 
 ## Resultados e análise experimental
 
-Medidos com `python comparacao.py` (tamanhos 1.000, 2.000, 4.000 e 8.000; seed 42; tempos = mediana de 3 execuções; Python 3.15, macOS arm64). Os dados completos estão em [`assets/ultimos_resultados.json`](assets/ultimos_resultados.json).
+Medidos com `python comparacao.py` (tamanhos 1.000, 2.000, 4.000 e 8.000; seed 42; tempos = mediana de 3 execuções; Python 3.15, macOS arm64). Os dados completos estão em [`assets/ultimos_resultados.json`](assets/ultimos_resultados.json), e as tabelas abaixo são geradas a partir dele por [`tabelas_readme.py`](tabelas_readme.py).
 
 **Tempos dependem da máquina; altura, rotações e comparações não.** Quem rodar de novo vai ter os mesmos valores de altura, rotações e comparações, e tempos parecidos em proporção.
 
@@ -254,12 +256,14 @@ Cenários ([`src/cenarios.py`](src/cenarios.py)):
 
 ### Cadastro em ordem de data (n = 8.000)
 
+<!-- tabela:cronologico -->
 | | BST | AVL |
 |---|---|---|
 | Altura | 8.000 | 13 |
 | Comparações por busca | 4.000,5 | 11,98 |
 | Rotações | 0 | 7.987 |
 | Tempo de inserção | 2.033,0 ms | 89,5 ms |
+<!-- /tabela -->
 
 ![Altura final](assets/altura.png)
 
@@ -269,12 +273,14 @@ A BST vira uma lista: a altura é igual ao número de consultas, e cada busca pe
 
 ### Cadastro em ordem aleatória (n = 8.000)
 
+<!-- tabela:aleatorio -->
 | | BST | AVL |
 |---|---|---|
 | Altura | 36 | 16 |
 | Comparações por busca | 16,55 | 12,23 |
 | Rotações | 0 | 5.436 |
 | Tempo de inserção | 12,4 ms | 72,2 ms |
+<!-- /tabela -->
 
 ![Tempo de inserção](assets/tempo_insercao.png)
 
@@ -284,11 +290,13 @@ Com dados embaralhados a BST fica razoavelmente baixa sem fazer nada e é a mais
 
 ### Cancelamentos (remover 4.000 de 8.000)
 
+<!-- tabela:cancelamentos -->
 | | BST | AVL |
 |---|---|---|
 | Tempo de remoção | 800,0 ms | 22,4 ms |
 | Rotações na remoção | 0 | 652 |
 | Altura depois | 4.000 | 13 |
+<!-- /tabela -->
 
 ![Remoção](assets/remocao.png)
 
@@ -296,12 +304,14 @@ Cancelar consultas não conserta a BST: ela continua sendo uma lista, agora com 
 
 ### Base real da clínica (2.004 consultas do CSV)
 
+<!-- tabela:base_real -->
 | | BST | AVL |
 |---|---|---|
 | Altura | 2.004 | 11 |
 | Comparações por busca | 1.002,5 | 9,98 |
 | Tempo de inserção | 170,3 ms | 15,6 ms |
 | Remoção das 240 canceladas | 18,2 ms | 1,1 ms |
+<!-- /tabela -->
 
 ![Base real](assets/base_real.png)
 
