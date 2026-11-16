@@ -27,15 +27,15 @@ Operações que a agenda precisa suportar:
 - Medir altura final, número de rotações, comparações por busca e tempos de execução.
 - Aplicar a estrutura numa agenda real (horário livre, próximo horário livre, agenda do dia/semana).
 
-**Extras (planejados)**
+**Extras**
 - Desenho da árvore no terminal com as rotações aparecendo passo a passo.
 - Testes automáticos que validam as regras de cada árvore após cada operação.
 - Gráficos comparativos e recomendação para o cliente.
 
 ## Tecnologias
 
-- Python 3.10+
-- matplotlib (para os gráficos, nas etapas seguintes)
+- Python 3.9+
+- matplotlib (só para os gráficos; árvores, testes e demonstração não precisam dele)
 
 ## Base de dados
 
@@ -68,53 +68,41 @@ Regra de integridade: para o mesmo médico, não existem duas consultas com a me
 
 ## Estrutura
 
-Estado atual do repositório:
-
 ```
+├── assets/                     # gráficos PNG e ultimos_resultados.json do benchmark
 ├── dados/
 │   ├── consultas_clinica.csv   # base de dados simulada
 │   └── gerar_base.py           # gerador (seed 42)
 ├── src/
 │   ├── models.py               # Consulta, carregar_consultas(), gerar_horarios()
 │   ├── agenda.py               # regras de negócio da agenda (uma árvore por médico)
+│   ├── cenarios.py             # cenários de entrada do benchmark (seed 42)
 │   └── arvores/
+│       ├── __init__.py         # ESTRUTURAS: as árvores comparadas
 │       ├── base.py             # contrato comum: busca, sucessor, intervalo, altura, desenho
 │       ├── bst.py              # árvore binária de busca sem balanceamento
 │       └── avl.py              # AVL: rebalanceia com rotações
 ├── main.py                     # demonstração passo a passo
+├── comparacao.py               # benchmark -> assets/ultimos_resultados.json
+├── plot_results.py             # JSON -> gráficos em assets/
 ├── testes.py                   # testes de corretude
+├── requirements.txt            # matplotlib
 └── README.md
 ```
 
-Estrutura prevista (seguindo o padrão do trabalho anterior):
-
-```
-├── assets/                    # gráficos e dados do benchmark
-├── dados/
-├── src/
-│   ├── models.py              # classe Consulta
-│   ├── cenarios.py            # cenários de entrada
-│   ├── agenda.py              # regras de negócio da agenda
-│   └── arvores/
-│       ├── base.py            # contrato comum das árvores
-│       ├── bst.py
-│       ├── avl.py
-│       └── rubro_negra.py
-├── comparacao.py              # benchmark
-├── main.py                    # demonstração
-├── plot_results.py            # gráficos
-├── testes.py                  # testes de corretude
-└── requirements.txt
-```
+A Rubro-Negra (`src/arvores/rubro_negra.py`) entra na próxima etapa. Ao ser incluída em `ESTRUTURAS`, ela passa automaticamente pelos testes, pela demonstração e pelo benchmark.
 
 ## Como rodar
 
-Requer Python 3.10+. Ainda não há dependências externas.
+Requer Python 3.9+ (conferido em 3.9, 3.12 e 3.15).
 
 ```bash
-python dados/gerar_base.py   # gera de novo a base (sai idêntica, seed 42)
-python testes.py             # deve terminar com "Todos os testes passaram."
-python main.py               # demonstração passo a passo
+pip install -r requirements.txt   # só o matplotlib, para os gráficos
+python testes.py                  # deve terminar com "Todos os testes passaram."
+python main.py                    # demonstração passo a passo
+python comparacao.py              # benchmark (~40 s); aceita tamanhos: python comparacao.py 1000 5000
+python plot_results.py            # gera os gráficos em assets/
+python dados/gerar_base.py        # gera de novo a base (sai idêntica, seed 42)
 ```
 
 ## BST (Árvore Binária de Busca)
@@ -249,6 +237,84 @@ AVL: 7 consultas, altura 3, 4 rotações
 
 Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio em todas as árvores: horário ocupado, outro médico no mesmo horário, fim de semana, horário fora da grade, remarcar, cancelar duas vezes e a agenda do dia e da semana da base real contra o CSV.
 
+## Resultados e análise experimental
+
+Medidos com `python comparacao.py` (tamanhos 1.000, 2.000, 4.000 e 8.000; seed 42; tempos = mediana de 3 execuções; Python 3.15, macOS arm64). Os dados completos estão em [`assets/ultimos_resultados.json`](assets/ultimos_resultados.json).
+
+**Tempos dependem da máquina; altura, rotações e comparações não.** Quem rodar de novo vai ter os mesmos valores de altura, rotações e comparações, e tempos parecidos em proporção.
+
+Cenários ([`src/cenarios.py`](src/cenarios.py)):
+
+| Cenário | O que simula |
+|---|---|
+| `cronologico` | consultas cadastradas em ordem de data (o normal numa agenda) |
+| `aleatorio` | os mesmos horários em ordem embaralhada |
+| `cancelamentos` | cadastro em ordem de data e, depois, metade das consultas cancelada em ordem aleatória |
+| `base_real` | as 2.004 linhas de `dados/consultas_clinica.csv` numa árvore só (chave = data/hora + médico), na ordem do arquivo; depois as 240 canceladas são removidas |
+
+### Cadastro em ordem de data (n = 8.000)
+
+| | BST | AVL |
+|---|---|---|
+| Altura | 8.000 | 13 |
+| Comparações por busca | 4.000,5 | 11,98 |
+| Rotações | 0 | 7.987 |
+| Tempo de inserção | 2.033,0 ms | 89,5 ms |
+
+![Altura final](assets/altura.png)
+
+A BST vira uma lista: a altura é igual ao número de consultas, e cada busca percorre em média metade da agenda. A AVL fica com altura 13, praticamente o mínimo possível (log2 8.000 = 12,97). Ela faz quase uma rotação por consulta cadastrada (7.987 para 8.000), porque cada data nova pende a árvore para a direita. Mesmo pagando essas rotações, cadastra 23 vezes mais rápido que a BST.
+
+![Comparações por busca](assets/comparacoes_busca.png)
+
+### Cadastro em ordem aleatória (n = 8.000)
+
+| | BST | AVL |
+|---|---|---|
+| Altura | 36 | 16 |
+| Comparações por busca | 16,55 | 12,23 |
+| Rotações | 0 | 5.436 |
+| Tempo de inserção | 12,4 ms | 72,2 ms |
+
+![Tempo de inserção](assets/tempo_insercao.png)
+
+Com dados embaralhados a BST fica razoavelmente baixa sem fazer nada e é a mais rápida para cadastrar, porque não tem o custo de recalcular alturas e rotacionar. A AVL continua mais baixa e faz menos comparações por busca (12,2 contra 16,5). Ou seja: **a BST só é boa quando a ordem de chegada das chaves é aleatória, e numa agenda ela não é.**
+
+![Rotações](assets/rotacoes.png)
+
+### Cancelamentos (remover 4.000 de 8.000)
+
+| | BST | AVL |
+|---|---|---|
+| Tempo de remoção | 800,0 ms | 22,4 ms |
+| Rotações na remoção | 0 | 652 |
+| Altura depois | 4.000 | 13 |
+
+![Remoção](assets/remocao.png)
+
+Cancelar consultas não conserta a BST: ela continua sendo uma lista, agora com 4.000 nós. Na AVL a remoção precisou de 652 rotações (bem menos que uma por remoção) e a altura continuou 13.
+
+### Base real da clínica (2.004 consultas do CSV)
+
+| | BST | AVL |
+|---|---|---|
+| Altura | 2.004 | 11 |
+| Comparações por busca | 1.002,5 | 9,98 |
+| Tempo de inserção | 170,3 ms | 15,6 ms |
+| Remoção das 240 canceladas | 18,2 ms | 1,1 ms |
+
+![Base real](assets/base_real.png)
+
+A base real confirma o cenário cronológico: como o arquivo está em ordem de data, a BST degenera completamente, e a AVL responde "esse horário está livre?" com cerca de 10 comparações em vez de 1.000.
+
+## Recomendação para o cliente
+
+Para a agenda da clínica, **não usar a BST simples**: as consultas são cadastradas em ordem de data, que é exatamente o pior caso dela. Com alguns meses de agenda, cada consulta ao sistema passaria a percorrer milhares de registros.
+
+Entre as árvores já comparadas, a recomendação é a **AVL**. Uma agenda é consultada muito mais do que alterada (recepção e pacientes perguntam por horários livres o dia todo), e a AVL mantém a menor altura possível, o que deixa a busca, a próxima consulta e a agenda da semana sempre rápidas. O custo das rotações na inserção é pequeno perto do ganho: mesmo pagando uma rotação por consulta, o cadastro em ordem foi 23 vezes mais rápido que na BST.
+
+Esta recomendação será revisada quando a Rubro-Negra entrar no benchmark: ela tende a rotacionar menos na escrita, o que pode pesar a favor dela numa clínica com muitos cancelamentos e remarcações.
+
 ## Status do projeto
 
 - [x] Escolher o contexto (agenda de clínica) e justificar a escolha
@@ -259,8 +325,8 @@ Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio
 - [ ] Implementar a Rubro-Negra
 - [x] Agenda da clínica e demonstração passo a passo
 - [ ] Testes de corretude (BST e AVL prontas)
-- [ ] Benchmark, gráficos e análise experimental
-- [ ] Recomendação para o cliente
+- [x] Benchmark, gráficos e análise experimental (BST e AVL)
+- [x] Recomendação para o cliente (BST e AVL; revisar com a Rubro-Negra)
 - [ ] Vídeo de apresentação
 
 ## Integrantes
