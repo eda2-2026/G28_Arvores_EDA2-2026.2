@@ -35,7 +35,7 @@ def grafico_linhas(eixo, linhas, campo, titulo, rotulo_y, log=False):
     for estrutura, grupo in linhas_por_estrutura(linhas).items():
         eixo.plot(
             [l["n"] for l in grupo],
-            [l[campo] for l in grupo],
+            [l.get(campo, 0) for l in grupo],
             marker=MARCADORES.get(estrutura, "o"),
             color=CORES.get(estrutura),
             label=estrutura,
@@ -104,16 +104,31 @@ def main():
     figura, eixos = plt.subplots(1, 3, figsize=(13, 4.2))
     for eixo, campo, titulo in zip(
         eixos,
-        ("altura", "comparacoes_por_busca", "tempo_insercao_ms"),
-        ("Altura", "Comparações por busca", "Tempo de cadastro (ms)"),
+        ("altura_apos_remocao", "comparacoes_por_busca", "tempo_insercao_ms"),
+        ("Altura final após remoções", "Comparações por busca", "Tempo de cadastro (ms)"),
     ):
         barras = eixo.bar(nomes, [l[campo] for l in linhas], color=cores)
-        eixo.bar_label(barras, fmt="%.1f" if campo != "altura" else "%d")
+        eixo.bar_label(barras, fmt="%d" if campo.startswith("altura") else "%.1f")
         eixo.set_title(titulo)
         eixo.set_yscale("log")
         eixo.grid(axis="y", alpha=0.3)
-    figura.suptitle(f"Base real da clínica ({linhas[0]['n']} consultas do CSV, em ordem de data)")
+    figura.suptitle(f"Base real da clínica ({linhas[0]['n']} consultas do CSV; canceladas removidas)")
     salvar(figura, "base_real.png")
+
+    # 7. Recolorações da Rubro-Negra durante cadastro e cancelamentos
+    figura, eixos = plt.subplots(1, 2, figsize=(12, 4.5))
+    grafico_linhas(
+        eixos[0], cen["cronologico"], "recoloracoes_insercao",
+        NOMES_CENARIOS["cronologico"], "recolorações",
+    )
+    grafico_linhas(
+        eixos[1], cen["cancelamentos"], "recoloracoes_remocao",
+        "Cancelamento de metade das consultas", "recolorações",
+    )
+    for eixo in eixos:
+        eixo.set_ylim(bottom=0)
+    figura.suptitle("Recolorações na inserção e na remoção")
+    salvar(figura, "recoloracoes.png")
 
 
 if __name__ == "__main__":
