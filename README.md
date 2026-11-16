@@ -35,7 +35,7 @@ Operações que a agenda precisa suportar:
 ## Tecnologias
 
 - Python 3.10+
-- matplotlib (para os gráficos, nas etapas seguintes)
+- matplotlib (gráficos do benchmark; instalar com `pip install -r requirements.txt`)
 
 ## Base de dados
 
@@ -68,53 +68,40 @@ Regra de integridade: para o mesmo médico, não existem duas consultas com a me
 
 ## Estrutura
 
-Estado atual do repositório:
+Estrutura atual do repositório:
 
 ```
 ├── dados/
 │   ├── consultas_clinica.csv   # base de dados simulada
 │   └── gerar_base.py           # gerador (seed 42)
+├── assets/                     # resultados JSON e gráficos do benchmark
 ├── src/
 │   ├── models.py               # Consulta, carregar_consultas(), gerar_horarios()
 │   ├── agenda.py               # regras de negócio da agenda (uma árvore por médico)
+│   ├── cenarios.py             # entradas reproduzíveis do benchmark
 │   └── arvores/
 │       ├── base.py             # contrato comum: busca, sucessor, intervalo, altura, desenho
 │       ├── bst.py              # árvore binária de busca sem balanceamento
-│       └── avl.py              # AVL: rebalanceia com rotações
+│       ├── avl.py              # AVL: rebalanceia com rotações
+│       └── rubro_negra.py      # Rubro-Negra: rebalanceia com rotações e cores
+├── comparacao.py               # benchmark dos cenários
 ├── main.py                     # demonstração passo a passo
+├── plot_results.py             # gráficos comparativos
 ├── testes.py                   # testes de corretude
 └── README.md
 ```
 
-Estrutura prevista (seguindo o padrão do trabalho anterior):
-
-```
-├── assets/                    # gráficos e dados do benchmark
-├── dados/
-├── src/
-│   ├── models.py              # classe Consulta
-│   ├── cenarios.py            # cenários de entrada
-│   ├── agenda.py              # regras de negócio da agenda
-│   └── arvores/
-│       ├── base.py            # contrato comum das árvores
-│       ├── bst.py
-│       ├── avl.py
-│       └── rubro_negra.py
-├── comparacao.py              # benchmark
-├── main.py                    # demonstração
-├── plot_results.py            # gráficos
-├── testes.py                  # testes de corretude
-└── requirements.txt
-```
-
 ## Como rodar
 
-Requer Python 3.10+. Ainda não há dependências externas.
+Requer Python 3.10+. Para gerar os gráficos, instale `matplotlib` pelas dependências do projeto.
 
 ```bash
 python dados/gerar_base.py   # gera de novo a base (sai idêntica, seed 42)
 python testes.py             # deve terminar com "Todos os testes passaram."
-python main.py               # demonstração passo a passo
+python -X utf8 main.py       # demonstração passo a passo (UTF-8 no terminal do Windows)
+python comparacao.py         # benchmark (1.000, 2.000, 4.000 e 8.000 chaves)
+python comparacao.py 500 1000 2000  # tamanhos menores para rodar mais rápido
+python plot_results.py       # gera os PNGs em assets/
 ```
 
 ## BST (Árvore Binária de Busca)
@@ -191,7 +178,7 @@ Como a altura é O(log n), a AVL pode ser recursiva sem risco de estourar a pilh
 
 ### Testes da AVL
 
-Além de todos os testes comuns (que rodam nas duas árvores), [`testes.py`](testes.py) confere:
+Além dos testes comuns das árvores, [`testes.py`](testes.py) confere:
 - os quatro casos de rotação, com 3 chaves cada (1 rotação nos casos simples, 2 nos duplos);
 - a altura com 8.000 datas em ordem dentro do limite teórico;
 - o rebalanceamento depois de cancelar metade das consultas;
@@ -199,11 +186,29 @@ Além de todos os testes comuns (que rodam nas duas árvores), [`testes.py`](tes
 
 O `validar()` da AVL refaz a altura de cada nó a partir das folhas e confere se a altura guardada está certa e se o fator está entre -1 e +1.
 
+## Árvore Rubro-Negra
+
+Arquivo: [`src/arvores/rubro_negra.py`](src/arvores/rubro_negra.py)
+
+A Rubro-Negra é uma BST balanceada que guarda uma cor (vermelho ou preto) em cada nó. A implementação usa um nó sentinela preto para representar folhas vazias e manter a inserção e a remoção iterativas. As regras são:
+
+- a raiz e todas as folhas vazias são pretas;
+- um nó vermelho não pode ter filho vermelho;
+- todo caminho de um nó até uma folha vazia contém a mesma quantidade de nós pretos.
+
+Essas regras limitam a altura a `2 · log2(n + 1)`. Busca, inserção e remoção ficam em O(log n) no pior caso. Na inserção, o algoritmo corrige os casos de tio vermelho com recolorações e os casos internos/externos com rotações. Na remoção, a correção propaga o nó duplamente preto para cima ou ajusta irmão e sobrinhos; os mesmos casos são espelhados para os dois lados. Uma inserção usa no máximo duas rotações e uma remoção, no máximo três.
+
+Com `verbose=True`, a árvore imprime os casos, rotações e mudanças de cor. O desenho marca cada nó com `[V]` (vermelho) ou `[P]` (preto). Além dos contadores comuns, `recoloracoes` conta cada mudança efetiva de cor; `zerar_contadores()` reinicia os três contadores.
+
+### Testes da Rubro-Negra
+
+[`testes.py`](testes.py) verifica os casos espelhados de inserção, recoloração por tio vermelho, altura com 8.000 datas em ordem, desenho e saída `verbose`. Também executa 3.000 operações aleatórias e confere, após cada uma, as cores, a altura preta, os ponteiros dos pais e o conteúdo contra um dicionário. Os testes comuns de busca, remoção, sucessor, intervalo, agenda e base real rodam nas três árvores.
+
 ## Agenda da clínica e demonstração
 
 Arquivo: [`src/agenda.py`](src/agenda.py)
 
-A classe `Agenda` guarda uma árvore por médico e traduz cada pedido do dia a dia numa operação da árvore. A estrutura é escolhida na criação (`Agenda(BST)`, `Agenda(AVL)`...), então o mesmo código de negócio roda sobre todas as árvores. `Agenda.da_base()` carrega as consultas agendadas de [`dados/consultas_clinica.csv`](dados/consultas_clinica.csv).
+A classe `Agenda` guarda uma árvore por médico e traduz cada pedido do dia a dia numa operação da árvore. A estrutura é escolhida na criação (`Agenda(BST)`, `Agenda(AVL)` ou `Agenda(RubroNegra)`), então o mesmo código de negócio roda sobre as três. `Agenda.da_base()` carrega as consultas agendadas de [`dados/consultas_clinica.csv`](dados/consultas_clinica.csv).
 
 | Método | O que responde | Operação na árvore |
 |---|---|---|
@@ -220,10 +225,10 @@ A classe `Agenda` guarda uma árvore por médico e traduz cada pedido do dia a d
 O [`main.py`](main.py) mostra o funcionamento em 5 partes, desenhando as árvores no terminal:
 
 1. **BST com consultas em ordem:** as 7 consultas da manhã entram em ordem e a BST vira uma lista (altura 7).
-2. **As mesmas consultas na AVL:** cada rotação aparece no momento em que acontece; no fim a árvore tem altura 3.
+2. **Árvores balanceadas:** AVL e Rubro-Negra recebem as mesmas consultas; cada rotação e recoloração aparece no momento em que acontece.
 3. **Cancelamentos:** remoção com rebalanceamento.
-4. **Base real:** as 1.764 consultas agendadas do CSV, uma árvore por médico. Na BST cada médico fica com altura igual ao número de consultas (585, 610 e 569); na AVL, altura 10.
-5. **A agenda funcionando:** agenda do dia, horário livre, próximo horário livre, agendar (e a recusa de horário ocupado e de domingo), próxima consulta, remarcar, cancelar e agenda da semana.
+4. **Base real:** as 1.764 consultas agendadas do CSV, uma árvore por médico. Na BST cada médico fica com altura igual ao número de consultas (585, 610 e 569); a AVL fica com altura 10 e a Rubro-Negra, 16.
+5. **A agenda funcionando sobre a Rubro-Negra:** agenda do dia, horário livre, próximo horário livre, agendar (e a recusa de horário ocupado e de domingo), próxima consulta, remarcar, cancelar e agenda da semana.
 
 Trecho da saída:
 
@@ -249,6 +254,39 @@ AVL: 7 consultas, altura 3, 4 rotações
 
 Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio em todas as árvores: horário ocupado, outro médico no mesmo horário, fim de semana, horário fora da grade, remarcar, cancelar duas vezes e a agenda do dia e da semana da base real contra o CSV.
 
+## Benchmark, gráficos e análise experimental
+
+O [`comparacao.py`](comparacao.py) compara as três árvores nos cenários cronológico, aleatório, cancelamento de metade das consultas e base real. Usa as mesmas chaves geradas com semente 42, valida a árvore ao fim de cada rodada e mede altura, comparações por busca, rotações, recolorações da Rubro-Negra e tempo. Cada tempo é a mediana de três execuções. Para reproduzir:
+
+```bash
+python comparacao.py
+python plot_results.py
+```
+
+Os gráficos e os dados da execução ficam em [`assets/`](assets/). No cenário cronológico com 8.000 consultas, a BST degrada para altura 8.000 e a busca média usa 4.000,5 comparações. AVL e Rubro-Negra mantêm a altura abaixo de 24 e a busca perto de 12 comparações:
+
+| Árvore | Altura | Comparações por busca | Inserção (ms) | Rotações na inserção | Recolorações |
+|---|---:|---:|---:|---:|---:|
+| BST | 8.000 | 4.000,500 | 8.725,1 | 0 | — |
+| AVL | 13 | 11,978 | 252,1 | 7.987 | — |
+| Rubro-Negra | 23 | 12,395 | 246,1 | 7.977 | 39.882 |
+
+Na entrada aleatória de 8.000 chaves, a BST ficou com altura 36 e foi mais rápida para inserir (53 ms), mas a AVL e a Rubro-Negra ficaram com altura 16 e cerca de 12,2 comparações por busca. Esse resultado mostra que a BST pode ser eficiente quando a ordem é favorável, mas não oferece o limite de altura garantido pelas árvores balanceadas.
+
+Ao cancelar 4.000 das 8.000 consultas cronológicas, a BST levou 3.228 ms e terminou com altura 4.000. AVL e Rubro-Negra levaram cerca de 69 ms e terminaram com altura 13 e 14, respectivamente. A remoção fez 652 rotações na AVL e 761 na Rubro-Negra; a Rubro-Negra também fez 9.698 recolorações durante os cancelamentos.
+
+Na base real, o CSV tem 2.004 linhas, das quais 1.764 estão agendadas. Inserindo todas as linhas e removendo as 240 canceladas, a altura final foi 1.764 na BST, 11 na AVL e 12 na Rubro-Negra. A execução completa foi medida no Python 3.14.7 em Windows AMD64; tempos mudam conforme a máquina, enquanto alturas, comparações, rotações e recolorações são reproduzíveis com a mesma semente.
+
+**Recomendação para a clínica:** usar AVL quando a prioridade for ter a menor altura e o menor número de comparações em buscas. No caso cronológico com 8.000 consultas, ela ficou com altura 13 e 11,98 comparações médias, abaixo dos 23 níveis e 12,40 comparações da Rubro-Negra. A Rubro-Negra também é uma opção adequada: garante O(log n), teve tempo de inserção semelhante e exigiu dez rotações a menos nesse cenário. A BST só é recomendável se a entrada for pequena ou tiver ordem aleatória conhecida; o cadastro cronológico pode fazê-la degradar para O(n).
+
+![Altura nos cenários cronológico e aleatório](assets/altura.png)
+
+![Comparações médias por busca](assets/comparacoes_busca.png)
+
+![Tempo e rotações dos cancelamentos](assets/remocao.png)
+
+![Recolorações da Rubro-Negra](assets/recoloracoes.png)
+
 ## Status do projeto
 
 - [x] Escolher o contexto (agenda de clínica) e justificar a escolha
@@ -256,11 +294,11 @@ Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio
 - [x] Gerar a base de dados simulada
 - [x] Implementar a BST
 - [x] Implementar a AVL
-- [ ] Implementar a Rubro-Negra
+- [x] Implementar a Rubro-Negra
 - [x] Agenda da clínica e demonstração passo a passo
-- [ ] Testes de corretude (BST e AVL prontas)
-- [ ] Benchmark, gráficos e análise experimental
-- [ ] Recomendação para o cliente
+- [x] Testes de corretude nas três árvores
+- [x] Benchmark, gráficos e análise experimental
+- [x] Recomendação para o cliente
 - [ ] Vídeo de apresentação
 
 ## Integrantes
