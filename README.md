@@ -78,7 +78,8 @@ Estado atual do repositório:
 │   ├── models.py               # Consulta, carregar_consultas(), gerar_horarios()
 │   └── arvores/
 │       ├── base.py             # contrato comum: busca, sucessor, intervalo, altura, desenho
-│       └── bst.py              # árvore binária de busca sem balanceamento
+│       ├── bst.py              # árvore binária de busca sem balanceamento
+│       └── avl.py              # AVL: rebalanceia com rotações
 ├── testes.py                   # testes de corretude
 └── README.md
 ```
@@ -139,16 +140,72 @@ O que é comum às três árvores (busca, sucessor, intervalo, altura, desenho n
 
 [`testes.py`](testes.py) chama `validar()` (na maioria dos testes, depois de cada operação) e, no fim de cada teste, compara a árvore com um dicionário. O `validar()` confere a ordem das chaves, o tamanho e, na BST, os ponteiros de pai. Cobre árvore vazia, inserção em ordem e aleatória, horário ocupado, os três casos de remoção, 3.000 operações misturadas, sucessor, intervalo, desenho e a carga da base real (uma árvore por médico).
 
+## AVL
+
+Arquivo: [`src/arvores/avl.py`](src/arvores/avl.py)
+
+A AVL é uma BST que se rebalanceia sozinha. Cada nó guarda a própria altura, e o **fator de balanceamento** é `altura(esquerda) - altura(direita)`. A regra é: em todo nó o fator fica entre -1 e +1. Isso garante altura de no máximo cerca de `1,44 · log2(n)`, então busca, inserção e remoção custam O(log n) sempre, mesmo com as datas chegando em ordem.
+
+Inserção e remoção descem como na BST. Na volta da recursão, cada nó do caminho recalcula a altura e, se o fator virou +2 ou -2, aplica a rotação do caso:
+
+| Caso | Fator do nó | Fator do filho | Correção |
+|---|---|---|---|
+| esquerda-esquerda | +2 | >= 0 | rotação à direita |
+| esquerda-direita | +2 | < 0 | rotação à esquerda no filho, depois à direita |
+| direita-direita | -2 | <= 0 | rotação à esquerda |
+| direita-esquerda | -2 | > 0 | rotação à direita no filho, depois à esquerda |
+
+Rotação à esquerda em `x` (caso direita-direita):
+
+```
+  x                 y
+   \               / \
+    y      ->      x   z
+     \
+      z
+```
+
+Na agenda, as consultas entram em ordem cronológica. Cada nova consulta pende a árvore para a direita, e a AVL corrige com rotações à esquerda. Com `verbose=True` a árvore imprime cada caso e cada rotação. Inserindo 10, 20 e 30, em ordem:
+
+```
+    [AVL] caso direita-direita em 10
+    [AVL] rotação à esquerda em 10 (20 sobe)
+```
+
+O desenho mostra o fator de cada nó:
+
+```
+    ┌── 30 [f=+0]
+┌── 28 [f=+0]
+│   └── 25 [f=+0]
+20 [f=-1]
+└── 10 [f=+0]
+```
+
+Como a altura é O(log n), a AVL pode ser recursiva sem risco de estourar a pilha. Na remoção de um nó com dois filhos, ela copia o sucessor (como a BST) e rebalanceia todo o caminho até a raiz. A diferença está em quantos nós precisam ser corrigidos: na inserção, no máximo um nó se desequilibra (1 rotação simples ou 2 numa dupla) e o resto do caminho volta ao normal. Na remoção, corrigir um nó pode desequilibrar o de cima, então podem ser necessárias rotações em vários nós até a raiz, O(log n) no pior caso.
+
+**Primeiro resultado (testes):** com os mesmos 8.000 horários em ordem que deixam a BST com altura 8.000, a AVL fica com altura 13 e faz em média 12 comparações por busca (11,98), contra 4.000,5 da BST. O preço é rotacionar: foram 7.987 rotações para montar a árvore.
+
+### Testes da AVL
+
+Além de todos os testes comuns (que rodam nas duas árvores), [`testes.py`](testes.py) confere:
+- os quatro casos de rotação, com 3 chaves cada (1 rotação nos casos simples, 2 nos duplos);
+- a altura com 8.000 datas em ordem dentro do limite teórico;
+- o rebalanceamento depois de cancelar metade das consultas;
+- a saída do modo `verbose`.
+
+O `validar()` da AVL refaz a altura de cada nó a partir das folhas e confere se a altura guardada está certa e se o fator está entre -1 e +1.
+
 ## Status do projeto
 
 - [x] Escolher o contexto (agenda de clínica) e justificar a escolha
 - [x] Definir o modelo de dados e as operações da agenda
 - [x] Gerar a base de dados simulada
 - [x] Implementar a BST
-- [ ] Implementar a AVL
+- [x] Implementar a AVL
 - [ ] Implementar a Rubro-Negra
 - [ ] Agenda da clínica e demonstração passo a passo
-- [ ] Testes de corretude (BST pronta)
+- [ ] Testes de corretude (BST e AVL prontas)
 - [ ] Benchmark, gráficos e análise experimental
 - [ ] Recomendação para o cliente
 - [ ] Vídeo de apresentação
