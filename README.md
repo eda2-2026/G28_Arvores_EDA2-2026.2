@@ -74,6 +74,12 @@ Estado atual do repositório:
 ├── dados/
 │   ├── consultas_clinica.csv   # base de dados simulada
 │   └── gerar_base.py           # gerador (seed 42)
+├── src/
+│   ├── models.py               # Consulta, carregar_consultas(), gerar_horarios()
+│   └── arvores/
+│       ├── base.py             # contrato comum: busca, sucessor, intervalo, altura, desenho
+│       └── bst.py              # árvore binária de busca sem balanceamento
+├── testes.py                   # testes de corretude
 └── README.md
 ```
 
@@ -100,24 +106,49 @@ Estrutura prevista (seguindo o padrão do trabalho anterior):
 
 ## Como rodar
 
-Por enquanto só é possível gerar a base de dados:
+Requer Python 3.10+. Ainda não há dependências externas.
 
 ```bash
-python dados/gerar_base.py
+python dados/gerar_base.py   # gera de novo a base (sai idêntica, seed 42)
+python testes.py             # deve terminar com "Todos os testes passaram."
 ```
 
-As instruções completas serão atualizadas conforme as próximas etapas forem entregues.
+## BST (Árvore Binária de Busca)
+
+Arquivo: [`src/arvores/bst.py`](src/arvores/bst.py)
+
+Regra: para cada nó, tudo na subárvore esquerda tem chave menor e tudo na direita tem chave maior. Na agenda, a chave é a data/hora da consulta.
+
+| Operação | Como funciona | Custo |
+|---|---|---|
+| Buscar | compara com o nó e desce para a esquerda ou direita | O(h) |
+| Inserir | desce como na busca e pendura o novo nó numa folha; se o horário já existe, recusa (horário ocupado) | O(h) |
+| Remover | folha: só retira. Um filho: o filho sobe. Dois filhos: copia o sucessor (menor da direita) e remove o sucessor | O(h) |
+| Próxima consulta a partir de X | guarda o último nó maior que X no caminho da busca | O(h) |
+| Agenda do dia/semana | percurso em ordem que só desce nos ramos dentro do intervalo | O(h + k) |
+
+`h` é a altura da árvore e `k` o número de consultas devolvidas.
+
+**O problema:** a BST não se reorganiza. A forma depende só da ordem em que as chaves chegam. Numa agenda as consultas são cadastradas, em grande parte, em ordem cronológica: cada nova data é maior que todas as anteriores e vai sempre para a direita. A árvore vira uma lista encadeada, com `h = n`. Os testes mostram isso: com 8.000 horários em ordem a altura é 8.000, e buscar a última consulta custa 8.000 comparações. Com os mesmos horários embaralhados a altura fica abaixo de 60.
+
+Por isso todas as operações da BST são **iterativas**: uma versão recursiva estouraria o limite de recursão do Python nessa árvore degenerada.
+
+O que é comum às três árvores (busca, sucessor, intervalo, altura, desenho no terminal e contadores de comparações e rotações) fica em [`src/arvores/base.py`](src/arvores/base.py). Cada árvore implementa só `inserir`, `remover` e `validar`.
+
+### Testes
+
+[`testes.py`](testes.py) chama `validar()` (na maioria dos testes, depois de cada operação) e, no fim de cada teste, compara a árvore com um dicionário. O `validar()` confere a ordem das chaves, o tamanho e, na BST, os ponteiros de pai. Cobre árvore vazia, inserção em ordem e aleatória, horário ocupado, os três casos de remoção, 3.000 operações misturadas, sucessor, intervalo, desenho e a carga da base real (uma árvore por médico).
 
 ## Status do projeto
 
 - [x] Escolher o contexto (agenda de clínica) e justificar a escolha
 - [x] Definir o modelo de dados e as operações da agenda
 - [x] Gerar a base de dados simulada
-- [ ] Implementar a BST
+- [x] Implementar a BST
 - [ ] Implementar a AVL
 - [ ] Implementar a Rubro-Negra
 - [ ] Agenda da clínica e demonstração passo a passo
-- [ ] Testes de corretude
+- [ ] Testes de corretude (BST pronta)
 - [ ] Benchmark, gráficos e análise experimental
 - [ ] Recomendação para o cliente
 - [ ] Vídeo de apresentação
