@@ -2,6 +2,16 @@
 
 Comparação entre **BST**, **AVL** e **Árvore Rubro-Negra** aplicadas a um sistema de agendamento de consultas de uma clínica.
 
+**Resumo em uma tabela** (8.000 consultas cadastradas em ordem de data, como acontece numa agenda real):
+
+| | BST | AVL | Rubro-Negra |
+|---|---:|---:|---:|
+| Altura da árvore | 8.000 | 13 | 23 |
+| Comparações para achar uma consulta | 4.000,5 | 11,98 | 12,39 |
+| Tempo para cadastrar tudo | 1.583,9 ms | 68,8 ms | 64,8 ms |
+
+A BST vira uma lista e fica inviável. AVL e Rubro-Negra se reequilibram sozinhas e respondem em cerca de 12 passos. A AVL é a mais baixa (melhor para consultar horários); a Rubro-Negra faz o rebalanceamento com regras mais folgadas. Detalhes em [Resultados e análise experimental](#resultados-e-análise-experimental) e a escolha final em [Recomendação para o cliente](#recomendação-para-o-cliente).
+
 ## Cenário
 
 Toda clínica, consultório ou salão precisa de uma agenda: dado um dia e horário, saber se está livre, qual é a próxima consulta e o que há marcado na semana. Neste trabalho cada médico tem uma agenda indexada por **data e horário** (a chave da árvore), de modo que dois pacientes nunca ocupam o mesmo horário com o mesmo médico.
@@ -254,38 +264,108 @@ AVL: 7 consultas, altura 3, 4 rotações
 
 Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio em todas as árvores: horário ocupado, outro médico no mesmo horário, fim de semana, horário fora da grade, remarcar, cancelar duas vezes e a agenda do dia e da semana da base real contra o CSV.
 
-## Benchmark, gráficos e análise experimental
+## Resultados e análise experimental
 
-O [`comparacao.py`](comparacao.py) compara as três árvores nos cenários cronológico, aleatório, cancelamento de metade das consultas e base real. Usa as mesmas chaves geradas com semente 42, valida a árvore ao fim de cada rodada e mede altura, comparações por busca, rotações, recolorações da Rubro-Negra e tempo. Cada tempo é a mediana de três execuções. Para reproduzir:
+O [`comparacao.py`](comparacao.py) compara as três árvores com as mesmas chaves (seed 42), valida cada árvore ao fim da rodada e mede altura, comparações por busca, rotações, recolorações (só a Rubro-Negra tem cor) e tempo. Cada tempo é a mediana de 3 execuções. Para reproduzir:
 
 ```bash
-python comparacao.py
-python plot_results.py
+python comparacao.py      # tamanhos 1.000, 2.000, 4.000 e 8.000 (~1 min)
+python plot_results.py    # gera os gráficos em assets/
 ```
 
-Os gráficos e os dados da execução ficam em [`assets/`](assets/). No cenário cronológico com 8.000 consultas, a BST degrada para altura 8.000 e a busca média usa 4.000,5 comparações. AVL e Rubro-Negra mantêm a altura abaixo de 24 e a busca perto de 12 comparações:
+Execução registrada em [`assets/ultimos_resultados.json`](assets/ultimos_resultados.json): Python 3.15, macOS arm64. **Tempos dependem da máquina; altura, comparações, rotações e recolorações não.** Quem rodar de novo obtém exatamente as mesmas contagens.
 
-| Árvore | Altura | Comparações por busca | Inserção (ms) | Rotações na inserção | Recolorações |
-|---|---:|---:|---:|---:|---:|
-| BST | 8.000 | 4.000,500 | 8.725,1 | 0 | — |
-| AVL | 13 | 11,978 | 252,1 | 7.987 | — |
-| Rubro-Negra | 23 | 12,395 | 246,1 | 7.977 | 39.882 |
+Cenários ([`src/cenarios.py`](src/cenarios.py)):
 
-Na entrada aleatória de 8.000 chaves, a BST ficou com altura 36 e foi mais rápida para inserir (53 ms), mas a AVL e a Rubro-Negra ficaram com altura 16 e cerca de 12,2 comparações por busca. Esse resultado mostra que a BST pode ser eficiente quando a ordem é favorável, mas não oferece o limite de altura garantido pelas árvores balanceadas.
+| Cenário | O que simula |
+|---|---|
+| `cronologico` | consultas cadastradas em ordem de data (o normal numa agenda) |
+| `aleatorio` | os mesmos horários em ordem embaralhada |
+| `cancelamentos` | cadastro em ordem de data e, depois, metade das consultas cancelada em ordem aleatória |
+| `base_real` | as 2.004 linhas de `dados/consultas_clinica.csv` numa árvore só (chave = data/hora + médico), na ordem do arquivo; depois as 240 canceladas são removidas |
 
-Ao cancelar 4.000 das 8.000 consultas cronológicas, a BST levou 3.228 ms e terminou com altura 4.000. AVL e Rubro-Negra levaram cerca de 69 ms e terminaram com altura 13 e 14, respectivamente. A remoção fez 652 rotações na AVL e 761 na Rubro-Negra; a Rubro-Negra também fez 9.698 recolorações durante os cancelamentos.
+### Cadastro em ordem de data (n = 8.000)
 
-Na base real, o CSV tem 2.004 linhas, das quais 1.764 estão agendadas. Inserindo todas as linhas e removendo as 240 canceladas, a altura final foi 1.764 na BST, 11 na AVL e 12 na Rubro-Negra. A execução completa foi medida no Python 3.14.7 em Windows AMD64; tempos mudam conforme a máquina, enquanto alturas, comparações, rotações e recolorações são reproduzíveis com a mesma semente.
+| | BST | AVL | Rubro-Negra |
+|---|---:|---:|---:|
+| Altura | 8.000 | 13 | 23 |
+| Comparações por busca | 4.000,5 | 11,98 | 12,39 |
+| Rotações | 0 | 7.987 | 7.977 |
+| Recolorações | — | — | 39.882 |
+| Tempo de inserção | 1.583,9 ms | 68,8 ms | 64,8 ms |
 
-**Recomendação para a clínica:** usar AVL quando a prioridade for ter a menor altura e o menor número de comparações em buscas. No caso cronológico com 8.000 consultas, ela ficou com altura 13 e 11,98 comparações médias, abaixo dos 23 níveis e 12,40 comparações da Rubro-Negra. A Rubro-Negra também é uma opção adequada: garante O(log n), teve tempo de inserção semelhante e exigiu dez rotações a menos nesse cenário. A BST só é recomendável se a entrada for pequena ou tiver ordem aleatória conhecida; o cadastro cronológico pode fazê-la degradar para O(n).
+![Altura final](assets/altura.png)
 
-![Altura nos cenários cronológico e aleatório](assets/altura.png)
+A BST vira uma lista: a altura é igual ao número de consultas e cada busca percorre, em média, metade da agenda (4.000,5 comparações). As duas árvores balanceadas resolvem o problema: a AVL fica com altura 13, praticamente o mínimo possível (log2 8.000 = 12,97), e a Rubro-Negra com 23, dentro do limite dela (2 · log2 8.001 ≈ 25,9). Na busca a diferença entre as duas é pequena: 11,98 contra 12,39 comparações.
 
-![Comparações médias por busca](assets/comparacoes_busca.png)
+As duas fazem quase uma rotação por consulta cadastrada (7.987 e 7.977), porque cada data nova pende a árvore para a direita. A Rubro-Negra ainda faz 39.882 recolorações, cerca de 5 por consulta. Mesmo pagando esse trabalho, AVL e Rubro-Negra cadastram as 8.000 consultas 23 a 24 vezes mais rápido que a BST.
 
-![Tempo e rotações dos cancelamentos](assets/remocao.png)
+![Comparações por busca](assets/comparacoes_busca.png)
+
+### Cadastro em ordem aleatória (n = 8.000)
+
+| | BST | AVL | Rubro-Negra |
+|---|---:|---:|---:|
+| Altura | 36 | 16 | 16 |
+| Comparações por busca | 16,55 | 12,23 | 12,28 |
+| Rotações | 0 | 5.436 | 4.598 |
+| Recolorações | — | — | 18.388 |
+| Tempo de inserção | 9,8 ms | 56,7 ms | 38,4 ms |
+
+![Tempo de inserção](assets/tempo_insercao.png)
+
+Com dados embaralhados a BST fica razoavelmente baixa (altura 36) sem fazer nada e é a mais rápida para cadastrar, porque não recalcula alturas, não rotaciona e não recolore. AVL e Rubro-Negra ficam com a mesma altura (16) e fazem menos comparações por busca (cerca de 12,2 contra 16,5). Aqui a Rubro-Negra rotaciona menos que a AVL (4.598 contra 5.436) e cadastra mais rápido. Conclusão: **a BST só é boa quando a ordem de chegada das chaves é aleatória, e numa agenda ela não é.**
+
+![Rotações](assets/rotacoes.png)
+
+### Cancelamentos (remover 4.000 de 8.000)
+
+| | BST | AVL | Rubro-Negra |
+|---|---:|---:|---:|
+| Tempo de remoção | 621,5 ms | 17,3 ms | 16,6 ms |
+| Rotações na remoção | 0 | 652 | 761 |
+| Recolorações na remoção | — | — | 9.698 |
+| Altura depois | 4.000 | 13 | 14 |
+
+![Remoção](assets/remocao.png)
+
+Cancelar consultas não conserta a BST: ela continua sendo uma lista, agora com 4.000 nós, e cada cancelamento custa uma busca linear. Nas árvores balanceadas a remoção é rápida e a altura quase não muda (13 na AVL, 14 na Rubro-Negra). Neste cenário a Rubro-Negra fez **mais** rotações que a AVL (761 contra 652) e ainda 9.698 recolorações, e mesmo assim os tempos das duas ficaram praticamente iguais.
 
 ![Recolorações da Rubro-Negra](assets/recoloracoes.png)
+
+### Base real da clínica (2.004 consultas do CSV)
+
+| | BST | AVL | Rubro-Negra |
+|---|---:|---:|---:|
+| Altura | 2.004 | 11 | 19 |
+| Comparações por busca | 1.002,5 | 9,98 | 10,41 |
+| Tempo de inserção | 131,3 ms | 12,1 ms | 10,2 ms |
+| Remoção das 240 canceladas | 14,1 ms | 0,8 ms | 0,8 ms |
+| Altura depois da remoção | 1.764 | 11 | 12 |
+
+![Base real](assets/base_real.png)
+
+Aqui todas as linhas do CSV vão para uma árvore só (por isso as alturas diferem das da [demonstração](#demonstração-python-mainpy), que monta uma árvore por médico só com as consultas agendadas). A base real confirma o cenário cronológico: como o arquivo está em ordem de data, a BST degenera por completo, enquanto a AVL e a Rubro-Negra respondem "esse horário está livre?" com cerca de 10 comparações em vez de 1.000.
+
+### AVL x Rubro-Negra
+
+| | AVL | Rubro-Negra |
+|---|---|---|
+| Regra | diferença de altura entre os filhos de no máximo 1 | cores: sem dois vermelhos seguidos e mesma quantidade de pretos em todo caminho |
+| Altura máxima | cerca de 1,44 · log2 n | 2 · log2(n + 1) |
+| Altura medida (8.000 em ordem) | 13 | 23 |
+| Comparações por busca | 11,98 | 12,39 |
+| Trabalho para rebalancear | rotações + recálculo de altura em todo o caminho | rotações (no máximo 2 por inserção e 3 por remoção) + recolorações |
+
+A AVL é mais rígida, por isso fica mais baixa e é a melhor para leitura. A Rubro-Negra aceita uma árvore mais alta em troca de corrigir menos a cada escrita. Nos nossos dados: no cadastro em ordem as duas rotacionaram praticamente igual (7.987 contra 7.977) e tiveram tempos próximos; no cadastro aleatório a Rubro-Negra fez 15% menos rotações (4.598 contra 5.436) e foi cerca de 32% mais rápida (38,4 contra 56,7 ms); nos cancelamentos a AVL rotacionou menos (652 contra 761), com tempos quase iguais.
+
+## Recomendação para o cliente
+
+Para a agenda da clínica, **não usar a BST simples**: as consultas são cadastradas em ordem de data, que é exatamente o pior caso dela. Com alguns meses de agenda, cada consulta ao sistema passaria a percorrer milhares de registros.
+
+A recomendação é a **AVL**. Uma agenda é consultada muito mais do que alterada: recepção e pacientes perguntam por horários livres o dia todo, enquanto cadastros e cancelamentos são bem menos frequentes. A AVL mantém a menor altura (13 contra 23 com 8.000 consultas) e o menor número de comparações por busca, o que deixa sempre rápidas a busca, a próxima consulta e a agenda da semana.
+
+A **Rubro-Negra** também é uma boa escolha e seria a preferida num sistema em que a escrita domina (muitos cadastros, cancelamentos e remarcações ao mesmo tempo): ela garante O(log n), cadastrou um pouco mais rápido nos nossos testes e é a estrutura usada nas bibliotecas de muitas linguagens (por exemplo, o `TreeMap` do Java e as implementações mais comuns do `std::map` do C++). Para o volume de uma clínica, as duas atendem bem; a AVL leva vantagem por ser a mais rápida exatamente na operação mais usada.
 
 ## Status do projeto
 
@@ -297,7 +377,7 @@ Na base real, o CSV tem 2.004 linhas, das quais 1.764 estão agendadas. Inserind
 - [x] Implementar a Rubro-Negra
 - [x] Agenda da clínica e demonstração passo a passo
 - [x] Testes de corretude nas três árvores
-- [x] Benchmark, gráficos e análise experimental
+- [x] Resultados (benchmark, gráficos e análise experimental)
 - [x] Recomendação para o cliente
 - [ ] Vídeo de apresentação
 
