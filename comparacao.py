@@ -48,11 +48,14 @@ def medir(Arvore, insercoes, remocoes):
 
     if remocoes:
         rotacoes_antes = arvore.rotacoes
+        recoloracoes_antes = getattr(arvore, "recoloracoes", 0)
         inicio = time.perf_counter()
         for chave in remocoes:
             arvore.remover(chave)
         resultado["tempo_remocao_ms"] = (time.perf_counter() - inicio) * 1000
         resultado["rotacoes_remocao"] = arvore.rotacoes - rotacoes_antes
+        if hasattr(arvore, "recoloracoes"):
+            resultado["recoloracoes_remocao"] = arvore.recoloracoes - recoloracoes_antes
         resultado["altura_apos_remocao"] = arvore.altura()
 
     arvore.validar()  # o benchmark só vale se a árvore terminou correta
@@ -106,6 +109,10 @@ def imprimir(cenario, m):
     )
     if "tempo_remocao_ms" in m:
         texto += f" | remoção {m['tempo_remocao_ms']:>7.1f} ms, {m['rotacoes_remocao']:>5} rot."
+    if "recoloracoes_insercao" in m:
+        texto += f" | {m['recoloracoes_insercao']:>5} recolor."
+    if "recoloracoes_remocao" in m:
+        texto += f" | {m['recoloracoes_remocao']:>5} recolor. na remoção"
     print(texto)
 
 
