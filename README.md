@@ -98,7 +98,7 @@ Requer Python 3.10+. Para gerar os gráficos, instale `matplotlib` pelas depend�
 ```bash
 python dados/gerar_base.py   # gera de novo a base (sai idêntica, seed 42)
 python testes.py             # deve terminar com "Todos os testes passaram."
-python -X utf8 main.py       # demonstração passo a passo (UTF-8 no terminal do Windows)
+python main.py               # demonstração passo a passo 
 python comparacao.py         # benchmark (1.000, 2.000, 4.000 e 8.000 chaves)
 python comparacao.py 500 1000 2000  # tamanhos menores para rodar mais rápido
 python plot_results.py       # gera os PNGs em assets/
