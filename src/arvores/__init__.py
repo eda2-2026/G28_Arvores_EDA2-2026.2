@@ -1,6 +1,7 @@
+from .avl import AVL
 from .bst import BST
 
-# Estruturas comparadas no trabalho. AVL e Rubro-Negra entram nas próximas etapas.
-ESTRUTURAS = (BST,)
+# Estruturas comparadas no trabalho. A Rubro-Negra entra na próxima etapa.
+ESTRUTURAS = (BST, AVL)
 
-__all__ = ["BST", "ESTRUTURAS"]
+__all__ = ["AVL", "BST", "ESTRUTURAS"]
