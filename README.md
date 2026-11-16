@@ -2,8 +2,6 @@
 
 Comparação entre **BST**, **AVL** e **Árvore Rubro-Negra** aplicadas a um sistema de agendamento de consultas de uma clínica.
 
-> **Status: Etapa 1 (em andamento).** Contexto escolhido, modelo de dados definido e base de dados gerada. As implementações das árvores e os experimentos serão adicionados nas próximas etapas (veja [Status do projeto](#status-do-projeto)).
-
 ## Cenário
 
 Toda clínica, consultório ou salão precisa de uma agenda: dado um dia e horário, saber se está livre, qual é a próxima consulta e o que há marcado na semana. Neste trabalho cada médico tem uma agenda indexada por **data e horário** (a chave da árvore), de modo que dois pacientes nunca ocupam o mesmo horário com o mesmo médico.
@@ -126,9 +124,8 @@ As instruções completas serão atualizadas conforme as próximas etapas forem 
 
 ## Integrantes
 
-- (nome 1)
-- (nome 2)
-- (nome 3)
+- Enzo Lopes ([@lopes061](https://github.com/lopes061))
+- Luan Vinícius ([@luannvi](https://github.com/luannvi))
 
 ## Vídeo de Apresentação
 
