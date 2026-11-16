@@ -6,10 +6,11 @@ Depois de cada operação, validar() confere as regras da árvore. No fim de cad
 teste, o conteúdo da árvore é comparado com um dicionário (o resultado esperado).
 """
 
+import math
 import random
 from datetime import timedelta
 
-from src.arvores import ESTRUTURAS, BST
+from src.arvores import AVL, ESTRUTURAS, BST
 from src.models import CAMINHO_BASE, carregar_consultas, gerar_horarios
 
 SEMENTE = 42
@@ -206,6 +207,80 @@ def bst_aleatoria_fica_baixa():
         bst.inserir(horario)
     # altura esperada de BST aleatória é cerca de 4,3 * ln(n), bem longe de n
     assert bst.altura() < 60
+
+
+# ----------------------------------------------------------------------
+# Testes específicos da AVL
+# ----------------------------------------------------------------------
+def limite_altura_avl(n):
+    """Altura máxima teórica de uma AVL com n nós: cerca de 1,44 * log2(n + 2)."""
+    return 1.4405 * math.log2(n + 2) - 0.3277
+
+
+@teste
+def avl_quatro_casos_de_rotacao():
+    """Cada caso clássico, com 3 chaves, termina com a mesma árvore equilibrada."""
+    casos = {
+        "esquerda-esquerda": (30, 20, 10),
+        "direita-direita": (10, 20, 30),
+        "esquerda-direita": (30, 10, 20),
+        "direita-esquerda": (10, 30, 20),
+    }
+    for nome, chaves in casos.items():
+        avl = AVL()
+        for chave in chaves:
+            avl.inserir(chave)
+        avl.validar()
+        assert avl.raiz.chave == 20, nome
+        assert avl.raiz.esq.chave == 10 and avl.raiz.dir.chave == 30, nome
+        simples = nome in ("esquerda-esquerda", "direita-direita")
+        assert avl.rotacoes == (1 if simples else 2), nome
+
+
+@teste
+def avl_fica_baixa_com_datas_em_ordem():
+    """Mesmo pior caso da BST: aqui a árvore continua com altura O(log n)."""
+    n = 8000
+    avl = AVL()
+    horarios = gerar_horarios(n)
+    for horario in horarios:
+        avl.inserir(horario)
+    avl.validar()
+    assert avl.altura() <= limite_altura_avl(n)
+    assert avl.altura() == 13  # 8.000 em ordem: árvore quase perfeita (log2 8000 = 12,97)
+    assert avl.rotacoes > 0
+    assert avl.comparacoes_medias_busca(horarios) < 14
+
+
+@teste
+def avl_remocao_rebalanceia():
+    """Remover metade das consultas mantém a AVL dentro do limite de altura."""
+    horarios = gerar_horarios(4000)
+    avl = AVL()
+    for horario in horarios:
+        avl.inserir(horario)
+    rotacoes_insercao = avl.rotacoes
+    for horario in horarios[: len(horarios) // 2]:  # cancela as mais antigas
+        assert avl.remover(horario)
+    avl.validar()
+    assert len(avl) == 2000
+    assert avl.altura() <= limite_altura_avl(2000)
+    assert avl.rotacoes > rotacoes_insercao  # a remoção também precisou rotacionar
+
+
+@teste
+def avl_verbose_mostra_rotacoes():
+    """O modo verbose (usado na demonstração) imprime cada rotação."""
+    import contextlib
+    import io
+
+    saida = io.StringIO()
+    with contextlib.redirect_stdout(saida):
+        avl = AVL(verbose=True)
+        for chave in (10, 20, 30):
+            avl.inserir(chave)
+    texto = saida.getvalue()
+    assert "direita-direita" in texto and "rotação à esquerda em 10" in texto
 
 
 # ----------------------------------------------------------------------
