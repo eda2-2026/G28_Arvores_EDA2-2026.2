@@ -76,10 +76,12 @@ Estado atual do repositório:
 │   └── gerar_base.py           # gerador (seed 42)
 ├── src/
 │   ├── models.py               # Consulta, carregar_consultas(), gerar_horarios()
+│   ├── agenda.py               # regras de negócio da agenda (uma árvore por médico)
 │   └── arvores/
 │       ├── base.py             # contrato comum: busca, sucessor, intervalo, altura, desenho
 │       ├── bst.py              # árvore binária de busca sem balanceamento
 │       └── avl.py              # AVL: rebalanceia com rotações
+├── main.py                     # demonstração passo a passo
 ├── testes.py                   # testes de corretude
 └── README.md
 ```
@@ -112,6 +114,7 @@ Requer Python 3.10+. Ainda não há dependências externas.
 ```bash
 python dados/gerar_base.py   # gera de novo a base (sai idêntica, seed 42)
 python testes.py             # deve terminar com "Todos os testes passaram."
+python main.py               # demonstração passo a passo
 ```
 
 ## BST (Árvore Binária de Busca)
@@ -196,6 +199,56 @@ Além de todos os testes comuns (que rodam nas duas árvores), [`testes.py`](tes
 
 O `validar()` da AVL refaz a altura de cada nó a partir das folhas e confere se a altura guardada está certa e se o fator está entre -1 e +1.
 
+## Agenda da clínica e demonstração
+
+Arquivo: [`src/agenda.py`](src/agenda.py)
+
+A classe `Agenda` guarda uma árvore por médico e traduz cada pedido do dia a dia numa operação da árvore. A estrutura é escolhida na criação (`Agenda(BST)`, `Agenda(AVL)`...), então o mesmo código de negócio roda sobre todas as árvores. `Agenda.da_base()` carrega as consultas agendadas de [`dados/consultas_clinica.csv`](dados/consultas_clinica.csv).
+
+| Método | O que responde | Operação na árvore |
+|---|---|---|
+| `horario_livre(medico, data_hora)` | esse horário está livre? | busca |
+| `agendar(consulta)` | marca a consulta; recusa horário ocupado, fim de semana ou fora da grade | inserção |
+| `cancelar(medico, data_hora)` | desmarca e devolve a consulta | busca + remoção |
+| `remarcar(medico, de, para)` | muda o horário, se o novo estiver livre | remoção + inserção |
+| `proxima_consulta(medico, a_partir_de)` | qual a próxima consulta marcada? | sucessor |
+| `proximo_horario_livre(medico, a_partir_de)` | qual o próximo horário vago? | busca horário a horário da grade |
+| `agenda_do_dia` / `agenda_da_semana` | o que há marcado no dia/semana | busca por intervalo |
+
+### Demonstração (`python main.py`)
+
+O [`main.py`](main.py) mostra o funcionamento em 5 partes, desenhando as árvores no terminal:
+
+1. **BST com consultas em ordem:** as 7 consultas da manhã entram em ordem e a BST vira uma lista (altura 7).
+2. **As mesmas consultas na AVL:** cada rotação aparece no momento em que acontece; no fim a árvore tem altura 3.
+3. **Cancelamentos:** remoção com rebalanceamento.
+4. **Base real:** as 1.764 consultas agendadas do CSV, uma árvore por médico. Na BST cada médico fica com altura igual ao número de consultas (585, 610 e 569); na AVL, altura 10.
+5. **A agenda funcionando:** agenda do dia, horário livre, próximo horário livre, agendar (e a recusa de horário ocupado e de domingo), próxima consulta, remarcar, cancelar e agenda da semana.
+
+Trecho da saída:
+
+```
+--- AVL: inserindo em ordem, rotação por rotação ---
+  inserir 16/11 08:00
+  inserir 16/11 08:30
+  inserir 16/11 09:00
+    [AVL] caso direita-direita em 16/11 08:00
+    [AVL] rotação à esquerda em 16/11 08:00 (16/11 08:30 sobe)
+  ...
+
+    ┌── 16/11 11:00 [f=+0]
+┌── 16/11 10:30 [f=+0]
+│   └── 16/11 10:00 [f=+0]
+16/11 09:30 [f=+0]
+│   ┌── 16/11 09:00 [f=+0]
+└── 16/11 08:30 [f=+0]
+    └── 16/11 08:00 [f=+0]
+
+AVL: 7 consultas, altura 3, 4 rotações
+```
+
+Os testes da agenda (em [`testes.py`](testes.py)) conferem as regras de negócio em todas as árvores: horário ocupado, outro médico no mesmo horário, fim de semana, horário fora da grade, remarcar, cancelar duas vezes e a agenda do dia e da semana da base real contra o CSV.
+
 ## Status do projeto
 
 - [x] Escolher o contexto (agenda de clínica) e justificar a escolha
@@ -204,7 +257,7 @@ O `validar()` da AVL refaz a altura de cada nó a partir das folhas e confere se
 - [x] Implementar a BST
 - [x] Implementar a AVL
 - [ ] Implementar a Rubro-Negra
-- [ ] Agenda da clínica e demonstração passo a passo
+- [x] Agenda da clínica e demonstração passo a passo
 - [ ] Testes de corretude (BST e AVL prontas)
 - [ ] Benchmark, gráficos e análise experimental
 - [ ] Recomendação para o cliente
