@@ -3,7 +3,7 @@
 Roda com: python main.py
 
 Parte 1: a BST recebendo consultas em ordem cronológica vira uma lista.
-Parte 2: as árvores balanceadas recebendo as mesmas consultas (rotações aparecem).
+Parte 2: as árvores balanceadas recebendo as mesmas consultas (ajustes aparecem).
 Parte 3: cancelamentos (remoção com rebalanceamento).
 Parte 4: a base real da clínica (dados/consultas_clinica.csv) em cada árvore.
 Parte 5: a agenda funcionando: horário livre, agendar, cancelar, remarcar...
@@ -12,7 +12,7 @@ Parte 5: a agenda funcionando: horário livre, agendar, cancelar, remarcar...
 from datetime import datetime
 
 from src.agenda import Agenda
-from src.arvores import ESTRUTURAS, BST
+from src.arvores import ESTRUTURAS, BST, RubroNegra
 from src.models import Consulta, gerar_horarios
 
 LARGURA = 72
@@ -29,7 +29,10 @@ def subtitulo(texto):
 
 
 def resumo(arvore):
-    return f"{arvore.nome}: {len(arvore)} consultas, altura {arvore.altura()}, {arvore.rotacoes} rotações"
+    texto = f"{arvore.nome}: {len(arvore)} consultas, altura {arvore.altura()}, {arvore.rotacoes} rotações"
+    if hasattr(arvore, "recoloracoes"):
+        texto += f", {arvore.recoloracoes} recolorações"
+    return texto
 
 
 # ----------------------------------------------------------------------
@@ -95,9 +98,9 @@ def parte_4_base_real():
         print()
 
 
-def parte_5_agenda():
-    titulo("PARTE 5 - A agenda funcionando (sobre a AVL)")
-    agenda = Agenda.da_base()
+def parte_5_agenda(Arvore):
+    titulo(f"PARTE 5 - A agenda funcionando (sobre a {Arvore.nome})")
+    agenda = Agenda.da_base(Arvore)
     medico = "Dra. Marina Souza"
     dia = datetime(2026, 11, 18)
 
@@ -147,7 +150,7 @@ def main():
     parte_2_balanceadas(horarios)
     parte_3_cancelamentos(horarios)
     parte_4_base_real()
-    parte_5_agenda()
+    parte_5_agenda(RubroNegra)
     print()
 
 
