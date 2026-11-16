@@ -2,16 +2,18 @@
 
 Roda com: python testes.py
 
-Depois de cada operação, validar() confere as regras da árvore. No fim de cada
-teste, o conteúdo da árvore é comparado com um dicionário (o resultado esperado).
+validar() confere as regras da árvore (na maioria dos testes, depois de cada
+operação). No fim de cada teste, o conteúdo da árvore é comparado com um
+dicionário (o resultado esperado).
 """
 
 import math
 import random
-from datetime import timedelta
+from datetime import datetime, timedelta
 
+from src.agenda import Agenda
 from src.arvores import AVL, ESTRUTURAS, BST
-from src.models import CAMINHO_BASE, carregar_consultas, gerar_horarios
+from src.models import CAMINHO_BASE, Consulta, carregar_consultas, gerar_horarios
 
 SEMENTE = 42
 
@@ -281,6 +283,69 @@ def avl_verbose_mostra_rotacoes():
             avl.inserir(chave)
     texto = saida.getvalue()
     assert "direita-direita" in texto and "rotação à esquerda em 10" in texto
+
+
+# ----------------------------------------------------------------------
+# Testes da agenda da clínica
+# ----------------------------------------------------------------------
+@teste
+def agenda_operacoes_do_dia_a_dia():
+    for Arvore in ESTRUTURAS:
+        agenda = Agenda(Arvore)
+        medico = "Dra. Teste"
+        seg_8h = datetime(2026, 11, 16, 8, 0)
+        seg_8h30 = datetime(2026, 11, 16, 8, 30)
+        consulta = Consulta(1, seg_8h, medico, "Ana", "consulta", "agendada")
+
+        assert agenda.horario_livre(medico, seg_8h)
+        assert agenda.agendar(consulta)
+        assert not agenda.horario_livre(medico, seg_8h)
+        assert not agenda.agendar(Consulta(2, seg_8h, medico, "Bruno", "consulta", "agendada"))
+        # outro médico pode usar o mesmo horário
+        assert agenda.agendar(Consulta(3, seg_8h, "Dr. Outro", "Caio", "exame", "agendada"))
+        # fora do atendimento: domingo, horário quebrado, almoço
+        for fora in (datetime(2026, 11, 22, 9), datetime(2026, 11, 16, 8, 15), datetime(2026, 11, 16, 12)):
+            assert not agenda.horario_livre(medico, fora)
+            assert not agenda.agendar(Consulta(4, fora, medico, "Davi", "consulta", "agendada"))
+
+        assert agenda.proximo_horario_livre(medico, seg_8h) == seg_8h30
+        assert agenda.proxima_consulta(medico, datetime(2026, 11, 16, 7)) is consulta
+        assert agenda.proxima_consulta(medico, seg_8h30) is None
+
+        assert agenda.remarcar(medico, seg_8h, seg_8h30)
+        assert agenda.horario_livre(medico, seg_8h) and consulta.data_hora == seg_8h30
+        assert not agenda.remarcar(medico, seg_8h, seg_8h30)  # não há consulta às 8h
+
+        # remarcar para horário ocupado ou inválido não pode perder a consulta
+        assert agenda.agendar(Consulta(5, seg_8h, medico, "Eva", "retorno", "agendada"))
+        for invalido in (seg_8h, datetime(2026, 11, 22, 9)):
+            assert not agenda.remarcar(medico, seg_8h30, invalido)
+            assert agenda.arvore(medico).buscar(seg_8h30) is consulta and consulta.status == "agendada"
+        assert agenda.cancelar(medico, seg_8h30) is consulta and consulta.status == "cancelada"
+        assert agenda.cancelar(medico, seg_8h30) is None
+        for arvore in agenda.arvores.values():
+            arvore.validar()
+
+
+@teste
+def agenda_da_base_real():
+    consultas = carregar_consultas(CAMINHO_BASE)
+    agendadas = [c for c in consultas if c.status == "agendada"]
+    for Arvore in ESTRUTURAS:
+        agenda = Agenda.da_base(Arvore)
+        assert agenda.total_consultas() == len(agendadas)
+        medico = "Dra. Marina Souza"
+        dia = datetime(2026, 11, 18)
+        esperado = sorted(
+            (c for c in agendadas if c.medico == medico and c.data_hora.date() == dia.date()),
+            key=lambda c: c.data_hora,
+        )
+        assert agenda.agenda_do_dia(medico, dia) == esperado
+        semana = agenda.agenda_da_semana(medico, dia)
+        assert all(datetime(2026, 11, 16) <= c.data_hora < datetime(2026, 11, 23) for c in semana)
+        assert len(semana) == sum(
+            1 for c in agendadas if c.medico == medico and datetime(2026, 11, 16) <= c.data_hora < datetime(2026, 11, 23)
+        )
 
 
 # ----------------------------------------------------------------------
