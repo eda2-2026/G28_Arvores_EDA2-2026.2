@@ -4,11 +4,11 @@ Comparação entre **BST**, **AVL** e **Árvore Rubro-Negra** aplicadas à agend
 
 | 8.000 consultas cadastradas em ordem de data | BST | AVL | Rubro-Negra |
 |---|---:|---:|---:|
-| Altura da árvore | 8.000 | 13 | 23 |
-| Comparações para achar uma consulta | 4.000,5 | 11,98 | 12,39 |
+| Altura da árvore | 8.000 níveis | 13 níveis | 23 níveis |
+| Comparações para achar uma consulta (média) | 4.000,5 | 11,98 | 12,39 |
 | Tempo para cadastrar tudo | 1.583,9 ms | 68,8 ms | 64,8 ms |
 
-A BST vira uma lista. AVL e Rubro-Negra se reequilibram sozinhas e acham qualquer consulta em cerca de 12 passos.
+A BST vira uma lista: para achar uma consulta ela compara, em média, com metade das 8.000 (por isso 4.000,5 = (8.000 + 1) / 2). AVL e Rubro-Negra se reequilibram sozinhas e acham qualquer consulta em cerca de 12 comparações.
 
 ## Cenário
 
@@ -102,7 +102,7 @@ Na inserção, tio vermelho se resolve **recolorindo**; tio preto, com **rotaç�
 1. **BST com 7 consultas em ordem** vira uma escada (altura 7).
 2. **AVL e Rubro-Negra** com as mesmas consultas: rotações e recolorações aparecendo uma a uma (AVL termina com altura 3, Rubro-Negra com 4).
 3. **Cancelamentos** com rebalanceamento.
-4. **Base real**, uma árvore por médico: BST com altura 585/610/569, AVL 10, Rubro-Negra 16.
+4. **Base real**, uma árvore por médico: BST com altura de 585/610/569 níveis (igual ao número de consultas de cada médico), AVL 10 níveis, Rubro-Negra 16 níveis.
 5. **A agenda funcionando**: horário livre, agendar, recusa de horário ocupado e de domingo, remarcar, cancelar, agenda da semana.
 
 `python testes.py` roda **23 testes** nas três árvores. Depois das operações, `validar()` confere as regras de cada uma (ordem, fator da AVL, cores da Rubro-Negra) e o conteúdo é comparado com um dicionário.
@@ -111,21 +111,23 @@ Na inserção, tio vermelho se resolve **recolorindo**; tio preto, com **rotaç�
 
 Mesmas chaves para as três árvores (seed 42), tempos = mediana de 3 execuções (Python 3.15, macOS). **Tempos mudam de máquina para máquina; altura, comparações, rotações e recolorações não.** Dados completos em [`assets/ultimos_resultados.json`](assets/ultimos_resultados.json).
 
-| n = 8.000 | BST | AVL | Rubro-Negra |
+| n = 8.000 consultas | BST | AVL | Rubro-Negra |
 |---|---:|---:|---:|
-| **Em ordem de data:** altura | 8.000 | 13 | 23 |
-| comparações por busca | 4.000,5 | 11,98 | 12,39 |
-| rotações / recolorações | 0 | 7.987 | 7.977 / 39.882 |
-| tempo de inserção | 1.583,9 ms | 68,8 ms | 64,8 ms |
-| **Em ordem aleatória:** altura | 36 | 16 | 16 |
-| comparações por busca | 16,55 | 12,23 | 12,28 |
-| rotações / recolorações | 0 | 5.436 | 4.598 / 18.388 |
-| tempo de inserção | 9,8 ms | 56,7 ms | 38,4 ms |
-| **Cancelando 4.000:** tempo | 621,5 ms | 17,3 ms | 16,6 ms |
-| rotações / recolorações | 0 | 652 | 761 / 9.698 |
-| altura depois | 4.000 | 13 | 14 |
+| **Em ordem de data:** altura (níveis) | 8.000 | 13 | 23 |
+| comparações por busca (média) | 4.000,5 | 11,98 | 12,39 |
+| rotações / recolorações (total) | 0 | 7.987 | 7.977 / 39.882 |
+| tempo para cadastrar as 8.000 | 1.583,9 ms | 68,8 ms | 64,8 ms |
+| **Em ordem aleatória:** altura (níveis) | 36 | 16 | 16 |
+| comparações por busca (média) | 16,55 | 12,23 | 12,28 |
+| rotações / recolorações (total) | 0 | 5.436 | 4.598 / 18.388 |
+| tempo para cadastrar as 8.000 | 9,8 ms | 56,7 ms | 38,4 ms |
+| **Cancelando 4.000 das 8.000:** tempo para cancelar | 621,5 ms | 17,3 ms | 16,6 ms |
+| rotações / recolorações (total) | 0 | 652 | 761 / 9.698 |
+| altura depois (níveis) | 4.000 | 13 | 14 |
 
-**Base real** (as 2.004 linhas do CSV numa árvore só): altura 2.004 / 11 / 19 e 1.002,5 / 9,98 / 10,41 comparações por busca.
+**Como ler:** altura = número de níveis da árvore; comparações = quantas chaves a busca olha, em média, até achar a consulta; rotações e recolorações = total de operações de rebalanceamento feitas na rodada inteira; tempos em milissegundos (ms).
+
+**Base real** (as 2.004 linhas do CSV numa árvore só): altura de 2.004 / 11 / 19 níveis e, em média, 1.002,5 / 9,98 / 10,41 comparações por busca (BST / AVL / Rubro-Negra).
 
 <p>
 <img src="assets/altura.png" width="49%"> <img src="assets/comparacoes_busca.png" width="49%">
