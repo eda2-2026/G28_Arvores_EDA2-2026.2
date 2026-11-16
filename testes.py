@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 
 from src.agenda import Agenda
 from src.arvores import AVL, ESTRUTURAS, BST
+from src.arvores.rubro_negra import RubroNegra
 from src.models import CAMINHO_BASE, Consulta, carregar_consultas, gerar_horarios
 
 SEMENTE = 42
@@ -283,6 +284,101 @@ def avl_verbose_mostra_rotacoes():
             avl.inserir(chave)
     texto = saida.getvalue()
     assert "direita-direita" in texto and "rotação à esquerda em 10" in texto
+
+
+# ----------------------------------------------------------------------
+# Testes específicos da Rubro-Negra
+# ----------------------------------------------------------------------
+@teste
+def rubro_negra_quatro_casos_de_insercao():
+    """Os casos internos e externos espelhados corrigem a raiz e a ordem."""
+    casos = {
+        "esquerda-esquerda": ((30, 20, 10), 1),
+        "esquerda-direita": ((30, 10, 20), 2),
+        "direita-direita": ((10, 20, 30), 1),
+        "direita-esquerda": ((10, 30, 20), 2),
+    }
+    for nome, (chaves, rotacoes) in casos.items():
+        arvore = RubroNegra()
+        for chave in chaves:
+            assert arvore.inserir(chave)
+        arvore.validar()
+        assert arvore.raiz.chave == 20, nome
+        assert arvore.raiz.esq.chave == 10 and arvore.raiz.dir.chave == 30, nome
+        assert arvore.rotacoes == rotacoes, nome
+
+
+@teste
+def rubro_negra_recolore_com_tio_vermelho():
+    arvore = RubroNegra()
+    for chave in (10, 5, 15, 1):
+        arvore.inserir(chave)
+    arvore.validar()
+    assert arvore.raiz.cor == "preto"
+    assert arvore.raiz.esq.cor == arvore.raiz.dir.cor == "preto"
+    assert arvore.raiz.esq.esq.cor == "vermelho"
+    assert arvore.recoloracoes > 0
+    arvore.zerar_contadores()
+    assert arvore.recoloracoes == arvore.rotacoes == arvore.comparacoes == 0
+
+
+@teste
+def rubro_negra_conta_cor_do_sucessor_na_remocao():
+    arvore = RubroNegra()
+    for chave in (2, 1, 3):
+        arvore.inserir(chave)
+    antes = arvore.recoloracoes
+    assert arvore.remover(2)
+    arvore.validar()
+    assert arvore.raiz.chave == 3 and arvore.raiz.cor == "preto"
+    assert arvore.recoloracoes == antes + 1
+
+
+@teste
+def rubro_negra_fica_baixa_com_datas_em_ordem():
+    """Mesmo com entrada cronológica, a altura fica limitada por 2 log2(n+1)."""
+    horarios = gerar_horarios(8000)
+    arvore = RubroNegra()
+    for horario in horarios:
+        assert arvore.inserir(horario)
+    arvore.validar()
+    assert arvore.altura() <= 2 * math.ceil(math.log2(len(arvore) + 1))
+    assert arvore.comparacoes_medias_busca(horarios) < 2 * math.ceil(math.log2(len(arvore) + 1))
+    assert arvore.rotacoes > 0 and arvore.recoloracoes > 0
+
+
+@teste
+def rubro_negra_operacoes_misturadas():
+    """Confere invariantes e conteúdo após cada inserção ou remoção aleatória."""
+    rng = random.Random(SEMENTE)
+    arvore, modelo = RubroNegra(), {}
+    for passo in range(3000):
+        chave = rng.randrange(400)
+        if rng.random() < 0.6:
+            inserida = chave not in modelo
+            assert arvore.inserir(chave, passo) == inserida
+            if inserida:
+                modelo[chave] = passo
+        else:
+            removida = chave in modelo
+            assert arvore.remover(chave) == removida
+            modelo.pop(chave, None)
+        arvore.validar()
+        assert list(arvore.em_ordem()) == sorted(modelo.items())
+
+
+@teste
+def rubro_negra_verbose_mostra_caso_e_rotacao():
+    import contextlib
+    import io
+
+    saida = io.StringIO()
+    with contextlib.redirect_stdout(saida):
+        arvore = RubroNegra(verbose=True)
+        for chave in (30, 20, 10):
+            arvore.inserir(chave)
+    texto = saida.getvalue()
+    assert "esquerda-esquerda" in texto and "rotação à direita" in texto
 
 
 # ----------------------------------------------------------------------
