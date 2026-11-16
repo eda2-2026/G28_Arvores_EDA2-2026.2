@@ -157,4 +157,4 @@ A **Rubro-Negra** também atende bem e seria a escolha num sistema com muito mai
 
 ## Vídeo de Apresentação
 
-(link do vídeo)
+[![Apresentação da Ordenação no Estoque](https://img.shields.io/badge/▶_Assistir_no_YouTube-red?logo=youtube&logoColor=white&style=for-the-badge)](https://www.youtube.com/watch?v=lD3ITQ7PZws)
